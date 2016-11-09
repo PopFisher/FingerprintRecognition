@@ -31,13 +31,20 @@ public class FingerprintCore {
     private int mFailedTimes = 0;
     private boolean isSupport = false;
 
+    /**
+     * 指纹识别回调接口
+     */
     public interface IFingerprintResultListener {
+        /** 指纹识别成功 */
         void onAuthenticateSuccess();
 
+        /** 指纹识别失败 */
         void onAuthenticateFailed(int helpId);
 
-        void onFailedIdentify(int errMsgId);
+        /** 指纹识别发生错误-不可短暂恢复 */
+        void onAuthenticateError(int errMsgId);
 
+        /** 开始指纹识别监听成功 */
         void onStartAuthenticateResult(boolean isSuccess);
     }
 
@@ -48,7 +55,8 @@ public class FingerprintCore {
         mCryptoObjectCreator = new CryptoObjectCreator(new CryptoObjectCreator.ICryptoObjectCreateListener() {
             @Override
             public void onDataPrepared(FingerprintManager.CryptoObject cryptoObject) {
-                startAuthenticate(cryptoObject);
+//                startAuthenticate(cryptoObject);
+                // 如果需要一开始就进行指纹识别，可以在秘钥数据创建之后就启动指纹认证
             }
         });
     }
@@ -102,7 +110,7 @@ public class FingerprintCore {
             FPLog.log("onAuthenticationError, errId:" + errMsgId + ", err:" + errString + ", retry after 30 seconds");
             if (FingerprintManager.FINGERPRINT_ERROR_LOCKOUT == errMsgId) {
                 if (null != mFpResultListener && null != mFpResultListener.get()) {
-                    mFpResultListener.get().onFailedIdentify(errMsgId);
+                    mFpResultListener.get().onAuthenticateError(errMsgId);
                 }
             }
         }

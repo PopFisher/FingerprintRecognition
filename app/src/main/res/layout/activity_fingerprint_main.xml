@@ -10,17 +10,18 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="fingerprint.com.fingerprintrecognition.FingerprintMainActivity">
 
-    <TextView
+    <ImageView
+        android:id="@+id/fingerprint_guide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!" />
+        android:background="@drawable/fingerprint_guide"
+        android:layout_centerHorizontal="true" />
 
     <Button
         android:id="@+id/btn_activity_main_finger"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_below="@+id/textView"
-        android:layout_marginTop="54dp"
-        android:text="指纹识别" />
+        android:layout_below="@id/fingerprint_guide"
+        android:layout_marginTop="20dp"
+        android:text="@string/fingerprint_recognition" />
 </RelativeLayout>
