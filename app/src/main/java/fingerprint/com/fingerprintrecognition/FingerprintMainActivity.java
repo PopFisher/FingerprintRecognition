@@ -7,6 +7,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import fingerprint.com.fingerprintrecognition.core.FingerprintCore;
@@ -18,10 +20,15 @@ public class FingerprintMainActivity extends Activity {
     private Toast mToast;
     private Handler mHandler = new Handler(Looper.getMainLooper());
 
+    private ImageView mFingerGuideImg;
+    private TextView mFingerGuideTxt;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fingerprint_main);
+        mFingerGuideImg = (ImageView) findViewById(R.id.fingerprint_guide);
+        mFingerGuideTxt = (TextView) findViewById(R.id.fingerprint_guide_tip);
         mFingerprintCore = new FingerprintCore(this);
         mFingerprintCore.setFingerprintManager(mResultListener);
         Button fingerBtn = (Button) findViewById(R.id.btn_activity_main_finger);
@@ -39,21 +46,31 @@ public class FingerprintMainActivity extends Activity {
     private void startFingerprintRecognition() {
         if (mFingerprintCore.isSupport()) {
             toastTipMsg(R.string.fingerprint_recognition_tip);
+            mFingerGuideTxt.setText(R.string.fingerprint_recognition_tip);
+            mFingerGuideImg.setBackgroundResource(R.drawable.fingerprint_guide);
             mFingerprintCore.startAuthenticate();
         } else {
             toastTipMsg(R.string.fingerprint_recognition_not_support);
+            mFingerGuideTxt.setText(R.string.fingerprint_recognition_tip);
         }
+    }
+
+    private void resetGuideViewState() {
+        mFingerGuideTxt.setText(R.string.fingerprint_recognition_guide_tip);
+        mFingerGuideImg.setBackgroundResource(R.drawable.fingerprint_normal);
     }
 
     private FingerprintCore.IFingerprintResultListener mResultListener = new FingerprintCore.IFingerprintResultListener() {
         @Override
         public void onAuthenticateSuccess() {
             toastTipMsg(R.string.fingerprint_recognition_success);
+            resetGuideViewState();
         }
 
         @Override
         public void onAuthenticateFailed(int helpId) {
             toastTipMsg(R.string.fingerprint_recognition_failed);
+            mFingerGuideTxt.setText(R.string.fingerprint_recognition_failed);
         }
 
         @Override

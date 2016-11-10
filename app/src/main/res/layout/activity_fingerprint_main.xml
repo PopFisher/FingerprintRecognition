@@ -14,14 +14,24 @@
         android:id="@+id/fingerprint_guide"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/fingerprint_guide"
-        android:layout_centerHorizontal="true" />
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/fingerprint_normal" />
+
+    <TextView
+        android:id="@+id/fingerprint_guide_tip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:text="@string/fingerprint_recognition_guide_tip"
+        android:textSize="18sp"
+        android:textColor="@color/colorAccent"
+        android:layout_below="@id/fingerprint_guide" />
 
     <Button
         android:id="@+id/btn_activity_main_finger"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/fingerprint_guide"
+        android:layout_below="@id/fingerprint_guide_tip"
         android:layout_marginTop="20dp"
         android:text="@string/fingerprint_recognition" />
 </RelativeLayout>

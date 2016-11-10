@@ -6,6 +6,7 @@ import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import java.lang.ref.WeakReference;
@@ -27,9 +28,11 @@ public class FingerprintCore {
     private WeakReference<IFingerprintResultListener> mFpResultListener;
     private CancellationSignal mCancellationSignal;
     private CryptoObjectCreator mCryptoObjectCreator;
+    private FingerprintManager.AuthenticationCallback mAuthCallback;
 
     private int mFailedTimes = 0;
     private boolean isSupport = false;
+    private Handler mHandler = new Handler(Looper.getMainLooper());
 
     /**
      * 指纹识别回调接口
@@ -52,13 +55,21 @@ public class FingerprintCore {
         mFingerprintManager = getFingerprintManager(context);
         isSupport = (mFingerprintManager != null && isHardwareDetected());
         FPLog.log("fingerprint isSupport: " + isSupport);
-        mCryptoObjectCreator = new CryptoObjectCreator(new CryptoObjectCreator.ICryptoObjectCreateListener() {
-            @Override
-            public void onDataPrepared(FingerprintManager.CryptoObject cryptoObject) {
-//                startAuthenticate(cryptoObject);
-                // 如果需要一开始就进行指纹识别，可以在秘钥数据创建之后就启动指纹认证
-            }
-        });
+        initCryptoObject();
+    }
+
+    private void initCryptoObject() {
+        try {
+            mCryptoObjectCreator = new CryptoObjectCreator(new CryptoObjectCreator.ICryptoObjectCreateListener() {
+                @Override
+                public void onDataPrepared(FingerprintManager.CryptoObject cryptoObject) {
+                    // startAuthenticate(cryptoObject);
+                    // 如果需要一开始就进行指纹识别，可以在秘钥数据创建之后就启动指纹认证
+                }
+            });
+        } catch (Throwable throwable) {
+            FPLog.log("create cryptoObject failed!");
+        }
     }
 
     public void setFingerprintManager(IFingerprintResultListener fingerprintResultListener) {
@@ -70,26 +81,89 @@ public class FingerprintCore {
     }
 
     public void startAuthenticate(FingerprintManager.CryptoObject cryptoObject) {
-        mCancellationSignal = new CancellationSignal();
+        prepareData();
         mState = AUTHENTICATING;
         try {
             mFingerprintManager.authenticate(cryptoObject, mCancellationSignal, 0, mAuthCallback, null);
+            notifyStartAuthenticateResult(true, "");
+        } catch (Exception e) {
+            try {
+                mFingerprintManager.authenticate(null, mCancellationSignal, 0, mAuthCallback, null);
+                notifyStartAuthenticateResult(true, "");
+            } catch (Exception e2) {
+                notifyStartAuthenticateResult(false, Log.getStackTraceString(e2));
+            }
+        }
+    }
+
+    private void notifyStartAuthenticateResult(boolean isSuccess, String exceptionMsg) {
+        if (isSuccess) {
             FPLog.log("start authenticate...");
             if (mFpResultListener.get() != null) {
                 mFpResultListener.get().onStartAuthenticateResult(true);
             }
-        } catch (Exception e) {
-            try {
-                mFingerprintManager.authenticate(null, mCancellationSignal, 0, mAuthCallback, null);
-                if (mFpResultListener.get() != null) {
-                    mFpResultListener.get().onStartAuthenticateResult(true);
-                }
-            } catch (Exception e2) {
-                FPLog.log("startListening, Exception:" + Log.getStackTraceString(e2));
-                if (mFpResultListener.get() != null) {
-                    mFpResultListener.get().onStartAuthenticateResult(false);
-                }
+        } else {
+            FPLog.log("startListening, Exception" + exceptionMsg);
+            if (mFpResultListener.get() != null) {
+                mFpResultListener.get().onStartAuthenticateResult(false);
             }
+        }
+    }
+
+    private void notifyAuthenticationSucceeded() {
+        FPLog.log("onAuthenticationSucceeded");
+        if (null != mFpResultListener && null != mFpResultListener.get()) {
+            mFpResultListener.get().onAuthenticateSuccess();
+        }
+    }
+
+    private void notifyAuthenticationError(int errMsgId, CharSequence errString) {
+        FPLog.log("onAuthenticationError, errId:" + errMsgId + ", err:" + errString + ", retry after 30 seconds");
+        if (null != mFpResultListener && null != mFpResultListener.get()) {
+            mFpResultListener.get().onAuthenticateError(errMsgId);
+        }
+    }
+
+    private void notifyAuthenticationFailed(int msgId, String errString) {
+        FPLog.log("onAuthenticationFailed, msdId: " +  msgId + " errString: " + errString);
+        if (null != mFpResultListener && null != mFpResultListener.get()) {
+            mFpResultListener.get().onAuthenticateFailed(msgId);
+        }
+    }
+
+    private void prepareData() {
+        if (mCancellationSignal == null) {
+            mCancellationSignal = new CancellationSignal();
+        }
+        if (mAuthCallback == null) {
+            mAuthCallback = new FingerprintManager.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationError(int errMsgId, CharSequence errString) {
+                    // 多次指纹密码验证错误后，进入此方法；并且，不能短时间内调用指纹验证,一般间隔要超过30秒
+                    mState = NONE;
+                    notifyAuthenticationError(errMsgId, errString);
+                }
+
+                @Override
+                public void onAuthenticationHelp(int helpMsgId, CharSequence helpString) {
+                    mState = NONE;
+                    notifyAuthenticationFailed(helpMsgId , helpString.toString());
+                    onFailedRetry(helpMsgId);
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    mState = NONE;
+                    notifyAuthenticationFailed(0 , "");
+                    onFailedRetry(0);
+                }
+
+                @Override
+                public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
+                    mState = NONE;
+                    notifyAuthenticationSucceeded();
+                }
+            };
         }
     }
 
@@ -102,57 +176,20 @@ public class FingerprintCore {
         }
     }
 
-    private FingerprintManager.AuthenticationCallback mAuthCallback = new FingerprintManager.AuthenticationCallback() {
-        @Override
-        public void onAuthenticationError(int errMsgId, CharSequence errString) {
-            // 多次指纹密码验证错误后，进入此方法；并且，不能短时间内调用指纹验证,一般间隔要超过30秒
-            mState = NONE;
-            FPLog.log("onAuthenticationError, errId:" + errMsgId + ", err:" + errString + ", retry after 30 seconds");
-            if (FingerprintManager.FINGERPRINT_ERROR_LOCKOUT == errMsgId) {
-                if (null != mFpResultListener && null != mFpResultListener.get()) {
-                    mFpResultListener.get().onAuthenticateError(errMsgId);
-                }
-            }
-        }
-
-        @Override
-        public void onAuthenticationHelp(int helpMsgId, CharSequence helpString) {
-            mState = NONE;
-            FPLog.log("onAuthenticationHelp, helpId:" + helpMsgId + ", help:" + helpString);
-            onFailedRetry(helpMsgId);
-        }
-
-        @Override
-        public void onAuthenticationFailed() {
-            mState = NONE;
-            FPLog.log("onAuthenticationFailed");
-            onFailedRetry(0);
-        }
-
-        @Override
-        public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
-            mState = NONE;
-            FPLog.log("onAuthenticationSucceeded");
-            if (null != mFpResultListener && null != mFpResultListener.get()) {
-                mFpResultListener.get().onAuthenticateSuccess();
-            }
-        }
-    };
-
     private void onFailedRetry(int msgId) {
         mFailedTimes++;
-        if (null != mFpResultListener && null != mFpResultListener.get()) {
-            mFpResultListener.get().onAuthenticateFailed(msgId);
-        }
         FPLog.log("on failed retry time " + mFailedTimes);
         cancelAuthenticate();
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                startAuthenticate(mCryptoObjectCreator.getCryptoObject());
-            }
-        }, 300); // 每次重试间隔一会儿再启动
+        mHandler.removeCallbacks(mFailedRetryRunnable);
+        mHandler.postDelayed(mFailedRetryRunnable, 300); // 每次重试间隔一会儿再启动
     }
+
+    private Runnable mFailedRetryRunnable = new Runnable() {
+        @Override
+        public void run() {
+            startAuthenticate(mCryptoObjectCreator.getCryptoObject());
+        }
+    };
 
     public boolean isSupport() {
         return isSupport;
