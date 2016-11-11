@@ -44,10 +44,14 @@ public class KeyguardLockScreenManager {
     /**
      * 锁屏密码
      */
-    private void showAuthenticationScreen(Activity activity) {
-        Intent intent = mKeyManager.createConfirmDeviceCredentialIntent("finger", "测试指纹识别");
+    public void showAuthenticationScreen(Activity activity) {
+        Intent intent = mKeyManager.createConfirmDeviceCredentialIntent("锁屏密码", "测试锁屏密码");
         if (intent != null) {
             activity.startActivityForResult(intent, REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS);
         }
+    }
+
+    public void onDestroy() {
+        mKeyManager = null;
     }
 }

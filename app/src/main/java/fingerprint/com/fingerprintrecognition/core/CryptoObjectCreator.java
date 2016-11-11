@@ -156,4 +156,11 @@ public class CryptoObjectCreator {
     public FingerprintManager.CryptoObject getCryptoObject() {
         return mCryptoObject;
     }
+
+    public void onDestroy() {
+        mCipher = null;
+        mCryptoObject = null;
+        mCipher = null;
+        mKeyStore = null;
+    }
 }

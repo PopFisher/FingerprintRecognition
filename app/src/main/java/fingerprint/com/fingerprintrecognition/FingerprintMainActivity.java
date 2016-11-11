@@ -6,16 +6,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import fingerprint.com.fingerprintrecognition.core.FingerprintCore;
 
-public class FingerprintMainActivity extends Activity {
+public class FingerprintMainActivity extends Activity implements View.OnClickListener {
 
     private FingerprintCore mFingerprintCore;
+    private KeyguardLockScreenManager mKeyguardLockScreenManager;
 
     private Toast mToast;
     private Handler mHandler = new Handler(Looper.getMainLooper());
@@ -27,17 +27,69 @@ public class FingerprintMainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fingerprint_main);
-        mFingerGuideImg = (ImageView) findViewById(R.id.fingerprint_guide);
-        mFingerGuideTxt = (TextView) findViewById(R.id.fingerprint_guide_tip);
+        initViews();
+        initViewListeners();
+        initFingerprintCore();
+    }
+
+    private void initFingerprintCore() {
         mFingerprintCore = new FingerprintCore(this);
         mFingerprintCore.setFingerprintManager(mResultListener);
-        Button fingerBtn = (Button) findViewById(R.id.btn_activity_main_finger);
-        fingerBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        mKeyguardLockScreenManager = new KeyguardLockScreenManager(this);
+    }
+
+    private void initViews() {
+        mFingerGuideImg = (ImageView) findViewById(R.id.fingerprint_guide);
+        mFingerGuideTxt = (TextView) findViewById(R.id.fingerprint_guide_tip);
+    }
+
+    private void initViewListeners() {
+        findViewById(R.id.fingerprint_recognition_start).setOnClickListener(this);
+        findViewById(R.id.fingerprint_recognition_cancel).setOnClickListener(this);
+        findViewById(R.id.fingerprint_recognition_sys_unlock).setOnClickListener(this);
+        findViewById(R.id.fingerprint_recognition_sys_setting).setOnClickListener(this);
+    }
+
+    @Override
+    public void onClick(View v) {
+        final int viewId = v.getId();
+        switch (viewId) {
+            case R.id.fingerprint_recognition_start:
                 startFingerprintRecognition();
-            }
-        });
+                break;
+            case R.id.fingerprint_recognition_cancel:
+                cancelFingerprintRecognition();
+                break;
+            case R.id.fingerprint_recognition_sys_unlock:
+                startFingerprintRecognitionUnlockScreen();
+                break;
+            case R.id.fingerprint_recognition_sys_setting:
+                enterSysFingerprintSettingPage();
+                break;
+        }
+    }
+
+    private void enterSysFingerprintSettingPage() {
+        FingerprintUtil.openFingerPrintSettingPage(this);
+    }
+
+    private void cancelFingerprintRecognition() {
+        if (mFingerprintCore.isAuthenticating()) {
+            mFingerprintCore.cancelAuthenticate();
+            resetGuideViewState();
+        }
+    }
+
+    private void startFingerprintRecognitionUnlockScreen() {
+        if (mKeyguardLockScreenManager == null) {
+            return;
+        }
+        if (!mKeyguardLockScreenManager.isOpenLockScreenPwd()) {
+            toastTipMsg(R.string.fingerprint_not_set_unlock_screen_pws);
+            FingerprintUtil.openFingerPrintSettingPage(this);
+            return;
+        }
+        mKeyguardLockScreenManager.showAuthenticationScreen(this);
     }
 
     /**
@@ -45,10 +97,19 @@ public class FingerprintMainActivity extends Activity {
      */
     private void startFingerprintRecognition() {
         if (mFingerprintCore.isSupport()) {
+            if (!mFingerprintCore.isHasEnrolledFingerprints()) {
+                toastTipMsg(R.string.fingerprint_recognition_not_enrolled);
+                FingerprintUtil.openFingerPrintSettingPage(this);
+                return;
+            }
             toastTipMsg(R.string.fingerprint_recognition_tip);
             mFingerGuideTxt.setText(R.string.fingerprint_recognition_tip);
             mFingerGuideImg.setBackgroundResource(R.drawable.fingerprint_guide);
-            mFingerprintCore.startAuthenticate();
+            if (mFingerprintCore.isAuthenticating()) {
+                toastTipMsg(R.string.fingerprint_recognition_authenticating);
+            } else {
+                mFingerprintCore.startAuthenticate();
+            }
         } else {
             toastTipMsg(R.string.fingerprint_recognition_not_support);
             mFingerGuideTxt.setText(R.string.fingerprint_recognition_tip);
@@ -89,16 +150,16 @@ public class FingerprintMainActivity extends Activity {
         if (requestCode == KeyguardLockScreenManager.REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS) {
             // Challenge completed, proceed with using cipher
             if (resultCode == RESULT_OK) {
-                toastTipMsg("识别成功");
+                toastTipMsg(R.string.sys_pwd_recognition_success);
             } else {
-                toastTipMsg("识别失败");
+                toastTipMsg(R.string.sys_pwd_recognition_failed);
             }
         }
     }
 
     private void toastTipMsg(int messageId) {
         if (mToast == null) {
-            mToast = Toast.makeText(this, messageId, Toast.LENGTH_LONG);
+            mToast = Toast.makeText(this, messageId, Toast.LENGTH_SHORT);
         }
         mToast.setText(messageId);
         mToast.cancel();
@@ -122,4 +183,20 @@ public class FingerprintMainActivity extends Activity {
             mToast.show();
         }
     };
+
+    @Override
+    protected void onDestroy() {
+        if (mFingerprintCore != null) {
+            mFingerprintCore.onDestroy();
+            mFingerprintCore = null;
+        }
+        if (mKeyguardLockScreenManager != null) {
+            mKeyguardLockScreenManager.onDestroy();
+            mKeyguardLockScreenManager = null;
+        }
+        mResultListener = null;
+        mShowToastRunnable = null;
+        mToast = null;
+        super.onDestroy();
+    }
 }

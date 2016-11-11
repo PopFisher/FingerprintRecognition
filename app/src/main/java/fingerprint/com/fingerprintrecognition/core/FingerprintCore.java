@@ -80,7 +80,11 @@ public class FingerprintCore {
         startAuthenticate(mCryptoObjectCreator.getCryptoObject());
     }
 
-    public void startAuthenticate(FingerprintManager.CryptoObject cryptoObject) {
+    public boolean isAuthenticating() {
+        return mState == AUTHENTICATING;
+    }
+
+    private void startAuthenticate(FingerprintManager.CryptoObject cryptoObject) {
         prepareData();
         mState = AUTHENTICATING;
         try {
@@ -139,7 +143,8 @@ public class FingerprintCore {
             mAuthCallback = new FingerprintManager.AuthenticationCallback() {
                 @Override
                 public void onAuthenticationError(int errMsgId, CharSequence errString) {
-                    // 多次指纹密码验证错误后，进入此方法；并且，不能短时间内调用指纹验证,一般间隔要超过30秒
+                    // 多次指纹密码验证错误后，进入此方法；并且，不能短时间内调用指纹验证,一般间隔从几秒到几十秒不等
+                    // 这种情况不建议重试，建议提示用户用其他的方式解锁或者认证
                     mState = NONE;
                     notifyAuthenticationError(errMsgId, errString);
                 }
@@ -209,24 +214,16 @@ public class FingerprintCore {
     }
 
     /**
-     * 时候录入指纹
+     * 是否录入指纹，有些设备上即使录入了指纹，但是没有开启锁屏密码的话此方法还是返回false
      * @return
      */
-    public boolean hasEnrolledFingerprints() {
+    public boolean isHasEnrolledFingerprints() {
         try {
             // 有些厂商api23之前的版本可能没有做好兼容，这个方法内部会崩溃（redmi note2, redmi note3等）
             return mFingerprintManager.hasEnrolledFingerprints();
         } catch (Exception e) {
             return false;
         }
-    }
-
-    /**
-     * 指纹识别时候有效，有硬件支持并且有录入指纹返回true
-     * @return
-     */
-    public boolean isFingerprintAvailable() {
-        return isHardwareDetected() && hasEnrolledFingerprints();
     }
 
     public static FingerprintManager getFingerprintManager(Context context) {
@@ -237,5 +234,18 @@ public class FingerprintCore {
             FPLog.log("have not class FingerprintManager");
         }
         return fingerprintManager;
+    }
+
+    public void onDestroy() {
+        cancelAuthenticate();
+        mHandler = null;
+        mAuthCallback = null;
+        mFpResultListener = null;
+        mCancellationSignal = null;
+        mFingerprintManager = null;
+        if (mCryptoObjectCreator != null) {
+            mCryptoObjectCreator.onDestroy();
+            mCryptoObjectCreator = null;
+        }
     }
 }
