@@ -136,6 +136,7 @@ public class FingerprintMainActivity extends Activity implements View.OnClickLis
 
         @Override
         public void onAuthenticateError(int errMsgId) {
+            resetGuideViewState();
             toastTipMsg(R.string.fingerprint_recognition_error);
         }
 

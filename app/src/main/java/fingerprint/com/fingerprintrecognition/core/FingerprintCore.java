@@ -173,7 +173,7 @@ public class FingerprintCore {
     }
 
     public void cancelAuthenticate() {
-        if (mCancellationSignal != null && mState == AUTHENTICATING) {
+        if (mCancellationSignal != null && mState != CANCEL) {
             FPLog.log("cancelAuthenticate...");
             mState = CANCEL;
             mCancellationSignal.cancel();

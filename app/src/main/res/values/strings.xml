@@ -7,7 +7,7 @@
     <string name="fingerprint_recognition_not_support">次设备不支持指纹解锁</string>
     <string name="fingerprint_recognition_success">指纹识别成功</string>
     <string name="fingerprint_recognition_failed">指纹识别失败，请重试！</string>
-    <string name="fingerprint_recognition_error">指纹识别错误，等待30s之后再重试</string>
+    <string name="fingerprint_recognition_error">指纹识别错误，等待几秒之后再重试</string>
     <string name="fingerprint_recognition_authenticating">指纹识别已经开启，长按指纹解锁键</string>
     <string name="fingerprint_recognition_unlock_screen">测试密码解锁屏幕</string>
     <string name="fingerprint_recognition_not_enrolled">您还没有录制指纹，请录入！</string>
