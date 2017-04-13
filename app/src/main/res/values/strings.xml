@@ -4,7 +4,7 @@
     <string name="fingerprint_recognition_cancel">取消指纹识别</string>
     <string name="fingerprint_recognition_guide_tip">点击“开始指纹识别”按钮</string>
     <string name="fingerprint_recognition_tip">请进行指纹识别，长按指纹解锁键</string>
-    <string name="fingerprint_recognition_not_support">次设备不支持指纹解锁</string>
+    <string name="fingerprint_recognition_not_support">此设备不支持指纹解锁</string>
     <string name="fingerprint_recognition_success">指纹识别成功</string>
     <string name="fingerprint_recognition_failed">指纹识别失败，请重试！</string>
     <string name="fingerprint_recognition_error">指纹识别错误，等待几秒之后再重试</string>
