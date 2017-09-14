@@ -1,5 +1,8 @@
 # FingerprintRecognition
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;指纹识别，除了api>=23的支持指纹识别的设备，还支持api&lt;23的具有指纹识别硬件支持的设备（前提是这些设备兼容了Google官方的标准接口）
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;指纹识别接口使用参考文章[http://www.cnblogs.com/popfisher/p/6063835.html](http://www.cnblogs.com/popfisher/p/6063835.html "指纹识别适配")
+
 ## 指纹识别用途
 大概列举几个指纹识别的用途
 
@@ -45,3 +48,6 @@
 ## 特殊设备上的坑
 ### Letv X500 Android 6.0,API23
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;不按正常的套路回调onAuthenticationError，onAuthenticationFailed，理论上应该是识别失败的情况，它回调Error，点击取消指纹识别也会先回调一次Error，如果遇到这种情况，只能根据具体项目环境中去进行规避适配了。
+
+### 魅族上遇到的坑（忘记具体型号了）
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;onAuthenticationHelp回调不按套路出牌，正常官网文档解释，这个方法的回调时机是在指纹认证期间发生可恢复性的错误的时候回调。结果在魅族上遇到的问题是，启动指纹识别认证的时候就会回调这个方法，里面传递回来的信息提示是“等待按下手指”，也就是说，它的onAuthenticationHelp回调跟官网时机不一样，而且方法的作用也变了，它在正常的情况回调了onAuthenticationHelp。
