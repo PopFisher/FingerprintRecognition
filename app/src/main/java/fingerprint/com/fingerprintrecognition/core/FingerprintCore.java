@@ -90,13 +90,17 @@ public class FingerprintCore {
         try {
             mFingerprintManager.authenticate(cryptoObject, mCancellationSignal, 0, mAuthCallback, null);
             notifyStartAuthenticateResult(true, "");
-        } catch (Exception e) {
+        } catch (SecurityException e) {
             try {
                 mFingerprintManager.authenticate(null, mCancellationSignal, 0, mAuthCallback, null);
                 notifyStartAuthenticateResult(true, "");
-            } catch (Exception e2) {
+            } catch (SecurityException e2) {
                 notifyStartAuthenticateResult(false, Log.getStackTraceString(e2));
+            } catch (Throwable throwable) {
+
             }
+        } catch (Throwable throwable) {
+
         }
     }
 
@@ -116,6 +120,7 @@ public class FingerprintCore {
 
     private void notifyAuthenticationSucceeded() {
         FPLog.log("onAuthenticationSucceeded");
+        mFailedTimes = 0;
         if (null != mFpResultListener && null != mFpResultListener.get()) {
             mFpResultListener.get().onAuthenticateSuccess();
         }
@@ -152,15 +157,16 @@ public class FingerprintCore {
                 @Override
                 public void onAuthenticationHelp(int helpMsgId, CharSequence helpString) {
                     mState = NONE;
+                    // 建议根据参数helpString返回值，并且仅针对特定的机型做处理，并不能保证所有厂商返回的状态一致
                     notifyAuthenticationFailed(helpMsgId , helpString.toString());
-                    onFailedRetry(helpMsgId);
+                    onFailedRetry(helpMsgId, helpString.toString());
                 }
 
                 @Override
                 public void onAuthenticationFailed() {
                     mState = NONE;
-                    notifyAuthenticationFailed(0 , "");
-                    onFailedRetry(0);
+                    notifyAuthenticationFailed(0 , "onAuthenticationFailed");
+                    onFailedRetry(-1, "onAuthenticationFailed");
                 }
 
                 @Override
@@ -181,9 +187,14 @@ public class FingerprintCore {
         }
     }
 
-    private void onFailedRetry(int msgId) {
+    private void onFailedRetry(int msgId, String helpString) {
         mFailedTimes++;
         FPLog.log("on failed retry time " + mFailedTimes);
+        if (mFailedTimes > 5) { // 每个验证流程最多重试5次，这个根据使用场景而定，验证成功时清0
+            FPLog.log("on failed retry time more than 5 times");
+            return;
+        }
+        FPLog.log("onFailedRetry: msgId " + msgId + " helpString: " + helpString);
         cancelAuthenticate();
         mHandler.removeCallbacks(mFailedRetryRunnable);
         mHandler.postDelayed(mFailedRetryRunnable, 300); // 每次重试间隔一会儿再启动
@@ -206,11 +217,10 @@ public class FingerprintCore {
      */
     public boolean isHardwareDetected() {
         try {
-            mFingerprintManager.isHardwareDetected();
-        } catch (Throwable e) {
-            return false;
-        }
-        return true;
+            return mFingerprintManager.isHardwareDetected();
+        } catch (SecurityException e) {
+        } catch (Throwable e) {}
+        return false;
     }
 
     /**
@@ -221,9 +231,10 @@ public class FingerprintCore {
         try {
             // 有些厂商api23之前的版本可能没有做好兼容，这个方法内部会崩溃（redmi note2, redmi note3等）
             return mFingerprintManager.hasEnrolledFingerprints();
-        } catch (Exception e) {
-            return false;
+        } catch (SecurityException e) {
+        } catch (Throwable e) {
         }
+        return false;
     }
 
     public static FingerprintManager getFingerprintManager(Context context) {

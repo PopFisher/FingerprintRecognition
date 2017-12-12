@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 
 import fingerprint.com.fingerprintrecognition.log.FPLog;
 
@@ -16,11 +17,14 @@ public class KeyguardLockScreenManager {
     private KeyguardManager mKeyManager;
 
     /**
-     * 是否开启锁屏密码
+     * 是否开启锁屏密码，注意：有Api版本限制
      * @return
      */
     public boolean isOpenLockScreenPwd() {
         try {
+            if (Build.VERSION.SDK_INT < 16) {
+                return false;
+            }
             return mKeyManager != null && mKeyManager.isKeyguardSecure();
         } catch (Exception e) {
             return false;
@@ -42,9 +46,12 @@ public class KeyguardLockScreenManager {
     }
 
     /**
-     * 锁屏密码
+     * 锁屏密码，注意：有Api版本限制
      */
     public void showAuthenticationScreen(Activity activity) {
+        if (Build.VERSION.SDK_INT < 21) {
+            return;
+        }
         Intent intent = mKeyManager.createConfirmDeviceCredentialIntent("锁屏密码", "测试锁屏密码");
         if (intent != null) {
             activity.startActivityForResult(intent, REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS);
